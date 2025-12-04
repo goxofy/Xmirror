@@ -1,0 +1,24 @@
+<?php
+
+// 1. RapidAPI Configuration (Twitter API 45)
+// Get your key from: https://rapidapi.com/alexanderxbx/api/twitter-api45
+define('RAPID_API_KEY', 'YOUR_RAPID_API_KEY_HERE');
+define('RAPID_API_HOST', 'twitter-api45.p.rapidapi.com');
+
+// The Twitter username whose tweets you want to mirror.
+define('TWITTER_USERNAME', 'elonmusk');
+
+// 2. Database Configuration
+// The path to your SQLite database file.
+define('DB_PATH', __DIR__ . '/../db/tweets.db');
+
+// 3. Update Configuration
+// The time in seconds to wait before checking for new tweets again.
+// 300 seconds = 5 minutes.
+define('UPDATE_INTERVAL', 300);
+
+// 4. Security Configuration
+// The password required to access the site.
+define('ACCESS_PASSWORD', 'change_me');
+
+?>

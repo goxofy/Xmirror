@@ -21,4 +21,4 @@ define('UPDATE_INTERVAL', 300);
 // The password required to access the site.
 define('ACCESS_PASSWORD', 'change_me');
 
-?>
+// End of config

@@ -20,7 +20,14 @@ if (isset($_COOKIE[$cookie_name]) && $_COOKIE[$cookie_name] === $cookie_value) {
 if (isset($_POST['password'])) {
     if ($_POST['password'] === ACCESS_PASSWORD) {
         setcookie($cookie_name, $cookie_value, time() + (86400 * $cookie_days), "/"); // 86400 = 1 day
-        header("Location: " . $_SERVER['PHP_SELF']); // Refresh to clear POST
+
+        // Check for redirect
+        $redirect_url = $_SERVER['PHP_SELF'];
+        if (isset($_GET['redirect']) && !empty($_GET['redirect'])) {
+            $redirect_url = $_GET['redirect'];
+        }
+
+        header("Location: " . $redirect_url);
         exit;
     } else {
         $login_error = 'Incorrect password.';
@@ -33,7 +40,7 @@ if (isset($_POST['password'])) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Twitter Mirror</title>
+    <title>Xmirror</title>
     <style>
         :root {
             --bg-color: #1e1e1e;

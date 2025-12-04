@@ -1,3 +1,14 @@
+<?php
+require_once __DIR__ . '/../src/config.php';
+
+// Auth Check
+$cookie_name = 'twitter_mirror_auth';
+$cookie_value = md5(ACCESS_PASSWORD . 'salt_string');
+if (!isset($_COOKIE[$cookie_name]) || $_COOKIE[$cookie_name] !== $cookie_value) {
+    header('Location: index.php');
+    exit;
+}
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>

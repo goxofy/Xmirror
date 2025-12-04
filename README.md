@@ -58,6 +58,16 @@
     ```
     在浏览器中访问 `http://localhost:8000`。
 
+## 导入历史推文
+
+如果你有 X 官方导出的存档文件 (`tweets.js`)，可以使用内置的导入工具将其导入数据库：
+
+1.  确保你已经登录了 Xmirror（访问首页并输入密码）。
+2.  访问 `http://your-site/importer_ui.php`。
+3.  选择你的 `tweets.js` 文件（通常在存档的 `data` 文件夹中）。
+4.  点击 "Start Import"。
+5.  工具会自动将数据分块上传并存入数据库。
+
 ## 目录结构
 
 *   `public/`: Web 根目录。包含 `index.php` (前端界面) 和代理脚本。

@@ -10,6 +10,15 @@ header('Content-Type: application/json');
 require_once __DIR__ . '/../src/config.php';
 require_once __DIR__ . '/../src/database.php';
 
+// Auth Check
+$cookie_name = 'twitter_mirror_auth';
+$cookie_value = md5(ACCESS_PASSWORD . 'salt_string');
+if (!isset($_COOKIE[$cookie_name]) || $_COOKIE[$cookie_name] !== $cookie_value) {
+    http_response_code(401);
+    echo json_encode(['status' => 'error', 'message' => 'Unauthorized']);
+    exit;
+}
+
 // Basic security check: only allow POST requests
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
@@ -35,10 +44,10 @@ try {
     }
 
     $pdo = get_db_connection();
-    
+
     // Only run table creation for the very first chunk
     if ($is_first_chunk) {
-        create_tables(); 
+        create_tables();
     }
 
     $stmt = $pdo->prepare(
@@ -50,7 +59,8 @@ try {
 
     $imported_count = 0;
     foreach ($tweets_chunk as $entry) {
-        if (!isset($entry['tweet'])) continue;
+        if (!isset($entry['tweet']))
+            continue;
         $tweet = $entry['tweet'];
 
         $type = 'tweet';

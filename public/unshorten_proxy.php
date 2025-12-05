@@ -44,71 +44,117 @@ if ($http_code >= 300 && $http_code < 400) {
         elseif (preg_match('~/status/(\d+)/video/(\d+)~', $real_url, $v_matches)) {
             $tweet_id = $v_matches[1];
 
-            // Fetch video details from RapidAPI
-            // We need to include config to get the key, or use the one we just read.
-            // Let's try to include config.php safely.
-            if (file_exists(__DIR__ . '/../src/config.php')) {
-                require_once __DIR__ . '/../src/config.php';
+            // Database Caching Logic
+            $db_video_info = null;
+            $pdo = null;
+
+            // Try to connect to DB
+            if (file_exists(__DIR__ . '/../src/database.php')) {
+                require_once __DIR__ . '/../src/database.php';
+                try {
+                    $pdo = get_db_connection();
+                    $stmt = $pdo->prepare("SELECT video_info FROM video_cache WHERE tweet_id = :tweet_id");
+                    $stmt->execute([':tweet_id' => $tweet_id]);
+                    $row = $stmt->fetch();
+
+                    if ($row && !empty($row['video_info'])) {
+                        $db_video_info = json_decode($row['video_info'], true);
+                    }
+                } catch (Exception $e) {
+                    // Silent fail on DB error, proceed to API
+                }
             }
 
-            if (defined('RAPID_API_KEY')) {
-                $api_url = "https://twitter-api45.p.rapidapi.com/tweet.php?id=" . $tweet_id;
-
-                $ch_api = curl_init();
-                curl_setopt($ch_api, CURLOPT_URL, $api_url);
-                curl_setopt($ch_api, CURLOPT_RETURNTRANSFER, true);
-                curl_setopt($ch_api, CURLOPT_HTTPHEADER, [
-                    'x-rapidapi-host: twitter-api45.p.rapidapi.com',
-                    'x-rapidapi-key: ' . RAPID_API_KEY
-                ]);
-                curl_setopt($ch_api, CURLOPT_TIMEOUT, 10);
-
-                $api_response = curl_exec($ch_api);
-                curl_close($ch_api);
-
-                $tweet_data = json_decode($api_response, true);
-
-                // Helper to extract video from a tweet object
-                function extract_video_info($data)
-                {
-                    if (isset($data['media']['video'][0])) {
-                        return $data['media']['video'][0];
-                    }
-                    // Sometimes it might be in extended_entities or just entities (though RapidAPI usually normalizes to media)
-                    // Let's check for quoted status video
-                    if (isset($data['quoted']['media']['video'][0])) {
-                        return $data['quoted']['media']['video'][0];
-                    }
-                    return null;
+            // If found in DB, use it!
+            if ($db_video_info) {
+                $response_data['is_video'] = true;
+                $response_data['thumbnail'] = $db_video_info['thumbnail'] ?? '';
+                $response_data['video_url'] = $db_video_info['video_url'] ?? '';
+            }
+            // If not in DB, fetch from API
+            else {
+                // Fetch video details from RapidAPI
+                if (file_exists(__DIR__ . '/../src/config.php')) {
+                    require_once __DIR__ . '/../src/config.php';
                 }
 
-                $video_info = extract_video_info($tweet_data);
+                if (defined('RAPID_API_KEY')) {
+                    $api_url = "https://twitter-api45.p.rapidapi.com/tweet.php?id=" . $tweet_id;
 
-                if ($video_info) {
-                    $response_data['is_video'] = true;
-                    $response_data['thumbnail'] = $video_info['media_url_https'] ?? '';
+                    $ch_api = curl_init();
+                    curl_setopt($ch_api, CURLOPT_URL, $api_url);
+                    curl_setopt($ch_api, CURLOPT_RETURNTRANSFER, true);
+                    curl_setopt($ch_api, CURLOPT_HTTPHEADER, [
+                        'x-rapidapi-host: twitter-api45.p.rapidapi.com',
+                        'x-rapidapi-key: ' . RAPID_API_KEY
+                    ]);
+                    curl_setopt($ch_api, CURLOPT_TIMEOUT, 10);
 
-                    // Find best variant (mp4 with highest bitrate)
-                    $best_variant = null;
-                    $max_bitrate = -1;
+                    $api_response = curl_exec($ch_api);
+                    curl_close($ch_api);
 
-                    if (isset($video_info['variants'])) {
-                        foreach ($video_info['variants'] as $variant) {
-                            if (isset($variant['content_type']) && $variant['content_type'] === 'video/mp4') {
-                                $bitrate = $variant['bitrate'] ?? 0;
-                                if ($bitrate > $max_bitrate) {
-                                    $max_bitrate = $bitrate;
-                                    $best_variant = $variant['url'];
+                    $tweet_data = json_decode($api_response, true);
+
+                    // Helper to extract video from a tweet object
+                    if (!function_exists('extract_video_info')) {
+                        function extract_video_info($data)
+                        {
+                            if (isset($data['media']['video'][0])) {
+                                return $data['media']['video'][0];
+                            }
+                            if (isset($data['quoted']['media']['video'][0])) {
+                                return $data['quoted']['media']['video'][0];
+                            }
+                            return null;
+                        }
+                    }
+
+                    $video_info = extract_video_info($tweet_data);
+
+                    if ($video_info) {
+                        $response_data['is_video'] = true;
+                        $response_data['thumbnail'] = $video_info['media_url_https'] ?? '';
+
+                        // Find best variant (mp4 with highest bitrate)
+                        $best_variant = null;
+                        $max_bitrate = -1;
+
+                        if (isset($video_info['variants'])) {
+                            foreach ($video_info['variants'] as $variant) {
+                                if (isset($variant['content_type']) && $variant['content_type'] === 'video/mp4') {
+                                    $bitrate = $variant['bitrate'] ?? 0;
+                                    if ($bitrate > $max_bitrate) {
+                                        $max_bitrate = $bitrate;
+                                        $best_variant = $variant['url'];
+                                    }
                                 }
                             }
                         }
-                    }
-                    // Fallback to m3u8 if no mp4 found (rare but possible)
-                    if (!$best_variant && isset($video_info['variants'][0]['url'])) {
-                        $best_variant = $video_info['variants'][0]['url'];
-                    }
+                        // Fallback to m3u8
+                        if (!$best_variant && isset($video_info['variants'][0]['url'])) {
+                            $best_variant = $video_info['variants'][0]['url'];
+                        }
 
-                    $response_data['video_url'] = $best_variant;
+                        $response_data['video_url'] = $best_variant;
+
+                        // Save to Database (video_cache table)
+                        if ($pdo && $best_variant) {
+                            try {
+                                $cache_data = json_encode([
+                                    'thumbnail' => $response_data['thumbnail'],
+                                    'video_url' => $best_variant
+                                ]);
+                                // Use INSERT OR REPLACE to handle both new and existing records
+                                $update_stmt = $pdo->prepare("INSERT OR REPLACE INTO video_cache (tweet_id, video_info) VALUES (:tweet_id, :video_info)");
+                                $update_stmt->execute([
+                                    ':tweet_id' => $tweet_id,
+                                    ':video_info' => $cache_data
+                                ]);
+                            } catch (Exception $e) {
+                                // Silent fail on save
+                            }
+                        }
+                    }
                 }
             }
         }

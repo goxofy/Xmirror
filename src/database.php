@@ -41,8 +41,15 @@ function create_tables()
         raw_data TEXT NOT NULL
     );";
 
+    $sql_cache = "CREATE TABLE IF NOT EXISTS video_cache (
+        tweet_id TEXT PRIMARY KEY,
+        video_info TEXT NOT NULL,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );";
+
     try {
         $pdo->exec($sql);
+        $pdo->exec($sql_cache);
     } catch (PDOException $e) {
         die("Table creation failed: " . $e->getMessage());
     }

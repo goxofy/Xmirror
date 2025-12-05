@@ -3,7 +3,7 @@
 require_once __DIR__ . '/../src/config.php';
 
 // --- AUTHENTICATION LOGIC ---
-// const ACCESS_PASSWORD = '...'; // Moved to config.php
+// --- AUTHENTICATION LOGIC ---
 $cookie_name = 'twitter_mirror_auth';
 $cookie_value = md5(ACCESS_PASSWORD . 'salt_string'); // Simple hash
 $cookie_days = 30;

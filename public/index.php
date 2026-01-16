@@ -391,6 +391,8 @@ if (isset($_POST['password'])) {
             border: none;
             /* No border to match single images */
             cursor: pointer;
+            text-decoration: none;
+            /* Ensure no underline for anchor */
             /* background-color: #000; Removed to match tweet images */
         }
 
@@ -979,12 +981,11 @@ if (isset($_POST['password'])) {
                         // Check if it's a Video
                         if (data.is_video && data.thumbnail && data.video_url) {
                             // Create Video Card
-                            const card = document.createElement('div');
+                            const card = document.createElement('a');
                             card.className = 'video-card';
-                            card.onclick = (e) => {
-                                e.preventDefault();
-                                window.open(data.video_url, '_blank');
-                            };
+                            card.href = data.video_url;
+                            card.target = '_blank';
+                            card.rel = 'noreferrer';
 
                             const img = document.createElement('img');
                             img.src = 'image_proxy.php?url=' + encodeURIComponent(data.thumbnail);
